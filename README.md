@@ -35,6 +35,17 @@ npm run start    # roda o build
 npm run lint     # lint
 ```
 
-## Deploy
+## Deploy na Vercel
 
-Suba o projeto na [Vercel](https://vercel.com) e configure as mesmas variáveis de ambiente do `.env.example`.
+1. Importe o repositório `tnt-fhuffner/mindset` (não crie um projeto Next.js em branco).
+2. Em **Settings → Environment Variables**, copie as chaves do `.env.example` / `.env.local`:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `NEXT_PUBLIC_APP_URL` (a URL `https://….vercel.app`)
+   - `NEXT_PUBLIC_MASTER_ADMIN_EMAIL`
+   - `ANTHROPIC_API_KEY` (opcional)
+3. Em **Deployments**, publique o commit mais recente da `main` (**Redeploy**).
+4. No Supabase → Authentication → URL Configuration, adicione:
+   - Site URL: a URL da Vercel
+   - Redirect URLs: `https://SEU-PROJETO.vercel.app/auth/callback`

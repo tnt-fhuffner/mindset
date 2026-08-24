@@ -13,6 +13,7 @@ export default function SignupPage() {
             <Logo />
           </Link>
           <CardTitle>Criar sua conta</CardTitle>
+          <p className="text-sm text-muted-foreground">Nome, e-mail e senha. Você entra na hora, sem link de confirmação.</p>
         </CardHeader>
         <CardContent>
           <Suspense>
