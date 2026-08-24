@@ -63,27 +63,35 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   const auth = await requireAdmin();
   if ("error" in auth && auth.error) return auth.error;
-  const body = await request.json();
-  const supabase = await createClient();
+  try {
+    const body = await request.json();
+    const supabase = await createClient();
 
-  if (body.action === "role" || body.action === "block") {
-    const patch =
-      body.action === "role" ? { role: body.role } : { is_blocked: Boolean(body.is_blocked) };
-    const { error } = await supabase.from("profiles").update(patch).eq("id", body.userId);
-    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-    return NextResponse.json({ ok: true });
+    if (body.action === "role" || body.action === "block") {
+      const admin = createServiceClient();
+      const patch =
+        body.action === "role" ? { role: body.role } : { is_blocked: Boolean(body.is_blocked) };
+      const { error } = await admin.from("profiles").update(patch).eq("id", body.userId);
+      if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+      return NextResponse.json({ ok: true });
+    }
+
+    if (body.action === "report") {
+      const { error } = await supabase
+        .from("reports")
+        .update({ status: body.status, reviewed_at: new Date().toISOString(), reviewed_by: auth.user!.id })
+        .eq("id", body.reportId);
+      if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+      return NextResponse.json({ ok: true });
+    }
+
+    return NextResponse.json({ error: "Ação inválida." }, { status: 400 });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Falha administrativa." },
+      { status: 500 }
+    );
   }
-
-  if (body.action === "report") {
-    const { error } = await supabase
-      .from("reports")
-      .update({ status: body.status, reviewed_at: new Date().toISOString(), reviewed_by: auth.user!.id })
-      .eq("id", body.reportId);
-    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-    return NextResponse.json({ ok: true });
-  }
-
-  return NextResponse.json({ error: "Ação inválida." }, { status: 400 });
 }
 
 export async function DELETE(request: Request) {

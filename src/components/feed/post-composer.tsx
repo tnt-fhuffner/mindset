@@ -47,6 +47,10 @@ export function PostComposer() {
       let file_mime: string | null = null;
       let file_size: number | null = null;
 
+      if (["pdf", "ebook", "image"].includes(type) && !file) {
+        throw new Error("Selecione um arquivo para publicar.");
+      }
+
       if (file && ["pdf", "ebook", "image"].includes(type)) {
         const payload = await uploadBlob(file, file.name);
         file_url = payload.publicUrl;
@@ -151,8 +155,12 @@ export function PostComposer() {
       {["pdf", "ebook", "image"].includes(type) && (
         <div className="space-y-2">
           <Label>Arquivo</Label>
-          <Input type="file" onChange={(event) => setFile(event.target.files?.[0] ?? null)} />
-          <p className="text-xs text-muted-foreground">PDF, EPUB ou imagens até 10 MB.</p>
+          <Input
+            type="file"
+            accept={type === "image" ? "image/png,image/jpeg,image/gif,image/webp" : type === "ebook" ? ".pdf,.epub,application/pdf,application/epub+zip" : "application/pdf,.pdf"}
+            onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+          />
+          <p className="text-xs text-muted-foreground">PDF, EPUB ou imagens até 10 MB. O arquivo vai direto para o armazenamento.</p>
         </div>
       )}
       <Button disabled={loading || title.length < 3} onClick={submit}>

@@ -537,10 +537,11 @@ security definer
 set search_path = public
 as $$
 begin
-  if not public.is_admin() then
-    new.role := old.role;
-    new.is_blocked := old.is_blocked;
+  if auth.role() = 'service_role' or public.is_admin() then
+    return new;
   end if;
+  new.role := old.role;
+  new.is_blocked := old.is_blocked;
   return new;
 end;
 $$;

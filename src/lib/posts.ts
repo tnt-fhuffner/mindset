@@ -1,3 +1,4 @@
+import { validateUpload } from "@/lib/file-validation";
 import { createClient } from "@/lib/supabase/client";
 
 export async function insertPost(row: Record<string, unknown>) {
@@ -13,10 +14,36 @@ export async function insertPost(row: Record<string, unknown>) {
 }
 
 export async function uploadBlob(file: File | Blob, filename: string) {
-  const body = new FormData();
-  body.append("file", file, filename);
-  const response = await fetch("/api/upload", { method: "POST", body });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(payload.error ?? "Falha no upload.");
-  return payload as { publicUrl: string; path: string; mime: string; size: number };
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Não autenticado.");
+
+  const asFile =
+    file instanceof File
+      ? file
+      : new File([file], filename, { type: file.type || "application/octet-stream" });
+
+  const buffer = await asFile.arrayBuffer();
+  const validation = validateUpload(asFile, buffer);
+  if (!validation.ok || !validation.mime) {
+    throw new Error(validation.error ?? "Arquivo inválido.");
+  }
+
+  const ext = filename.split(".").pop()?.toLowerCase() || "bin";
+  const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
+  const { error } = await supabase.storage.from("uploads").upload(path, buffer, {
+    contentType: validation.mime,
+    upsert: false,
+  });
+  if (error) throw new Error(error.message);
+
+  const { data } = supabase.storage.from("uploads").getPublicUrl(path);
+  return {
+    publicUrl: data.publicUrl,
+    path,
+    mime: validation.mime,
+    size: asFile.size,
+  };
 }

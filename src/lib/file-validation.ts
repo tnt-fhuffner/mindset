@@ -49,12 +49,5 @@ export function validateUpload(file: File, buffer: ArrayBuffer): FileValidation 
     };
   }
 
-  if (file.type && file.type !== mime && !(file.type === "application/octet-stream")) {
-    const jpegAlias = file.type === "image/jpg" && mime === "image/jpeg";
-    if (!jpegAlias) {
-      return { ok: false, error: "O tipo declarado do arquivo não corresponde ao conteúdo." };
-    }
-  }
-
   return { ok: true, mime };
 }

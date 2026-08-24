@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { readResponseJson } from "@/lib/http";
 import { createClient } from "@/lib/supabase/client";
 import type { AdminMetrics, Profile, Report } from "@/types";
 
@@ -56,8 +57,8 @@ export default function AdminPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    const payload = await response.json();
-    if (!response.ok) toast.error(payload.error);
+    const payload = await readResponseJson<{ error?: string }>(response);
+    if (!response.ok) toast.error(payload.error ?? "Não foi possível atualizar.");
     else {
       toast.success("Atualizado.");
       users.refetch();
@@ -73,8 +74,8 @@ export default function AdminPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    const payload = await response.json();
-    if (!response.ok) toast.error(payload.error);
+    const payload = await readResponseJson<{ error?: string }>(response);
+    if (!response.ok) toast.error(payload.error ?? "Não foi possível remover.");
     else {
       toast.success("Removido.");
       users.refetch();
@@ -83,6 +84,10 @@ export default function AdminPage() {
   }
 
   async function createUser() {
+    if (displayName.trim().length < 2 || !email.includes("@") || password.length < 8) {
+      toast.error("Informe nome, e-mail válido e senha com pelo menos 8 caracteres.");
+      return;
+    }
     setCreating(true);
     try {
       const response = await fetch("/api/admin", {
@@ -90,7 +95,7 @@ export default function AdminPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password, displayName, role }),
       });
-      const payload = await response.json().catch(() => ({}));
+      const payload = await readResponseJson<{ error?: string }>(response);
       if (!response.ok) throw new Error(payload.error ?? "Não foi possível criar o usuário.");
       toast.success("Usuário criado. Já pode entrar com e-mail e senha.");
       setDisplayName("");
@@ -135,6 +140,13 @@ export default function AdminPage() {
                 Cria a conta já confirmada. A pessoa entra na hora com o e-mail e a senha.
               </p>
             </div>
+            <form
+              className="space-y-4"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void createUser();
+              }}
+            >
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="admin-name">Nome</Label>
@@ -178,9 +190,10 @@ export default function AdminPage() {
                 </Select>
               </div>
             </div>
-            <Button disabled={creating} onClick={() => void createUser()}>
+            <Button type="submit" disabled={creating}>
               {creating ? "Criando…" : "Criar conta"}
             </Button>
+            </form>
           </Card>
           {(users.data ?? []).map((user) => (
             <div key={user.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3 text-sm">

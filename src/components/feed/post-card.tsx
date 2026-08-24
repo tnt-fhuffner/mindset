@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Download, Heart, Link2, MessageCircle, MoreHorizontal, Repeat2, Share2, Flag } from "lucide-react";
 import { toast } from "sonner";
@@ -9,13 +9,6 @@ import { PostCover } from "@/components/feed/post-cover";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
 import { useAddComment, useComments, useToggleLike } from "@/hooks/use-feed";
 import { createClient } from "@/lib/supabase/client";
@@ -25,6 +18,8 @@ import type { Post } from "@/types";
 
 export function PostCard({ post }: { post: Post }) {
   const [open, setOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const like = useToggleLike();
   const addComment = useAddComment();
@@ -32,6 +27,24 @@ export function PostCard({ post }: { post: Post }) {
   const [text, setText] = useState("");
   const author = post.author;
   const shareUrl = typeof window === "undefined" ? "" : `${window.location.origin}/feed?post=${post.id}`;
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onPointer(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") setMenuOpen(false);
+    }
+    document.addEventListener("mousedown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
 
   async function download() {
     const supabase = createClient();
@@ -93,6 +106,7 @@ export function PostCard({ post }: { post: Post }) {
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) return;
+    if (!confirm("Enviar esta publicação para a moderação?")) return;
     const { error } = await supabase.from("reports").insert({
       reporter_id: user.id,
       target_type: "post",
@@ -119,28 +133,71 @@ export function PostCard({ post }: { post: Post }) {
             </Link>
             <span className="text-muted-foreground">@{author?.username}</span>
             <span className="text-muted-foreground">· {formatRelative(post.created_at)}</span>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="ml-auto text-muted-foreground" aria-label="Mais opções">
-                  <MoreHorizontal className="h-4 w-4" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => void share()}>
-                  <Share2 className="mr-2 h-4 w-4" /> Compartilhar
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => void copyLink()}>
-                  <Link2 className="mr-2 h-4 w-4" /> Copiar link
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => void repost()}>
-                  <Repeat2 className="mr-2 h-4 w-4" /> Repostar
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => void report()}>
-                  <Flag className="mr-2 h-4 w-4" /> Denunciar
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <div className="relative ml-auto" ref={menuRef}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground"
+                aria-label="Mais opções"
+                aria-expanded={menuOpen}
+                onClick={() => setMenuOpen((value) => !value)}
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+              {menuOpen && (
+                <div
+                  role="menu"
+                  className="absolute right-0 top-full z-50 mt-1 w-52 rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
+                >
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="flex w-full items-center rounded-sm px-2 py-1.5 text-sm hover:bg-muted"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      void share();
+                    }}
+                  >
+                    <Share2 className="mr-2 h-4 w-4" /> Compartilhar
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="flex w-full items-center rounded-sm px-2 py-1.5 text-sm hover:bg-muted"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      void copyLink();
+                    }}
+                  >
+                    <Link2 className="mr-2 h-4 w-4" /> Copiar link
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="flex w-full items-center rounded-sm px-2 py-1.5 text-sm hover:bg-muted"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      void repost();
+                    }}
+                  >
+                    <Repeat2 className="mr-2 h-4 w-4" /> Repostar
+                  </button>
+                  <div className="my-1 h-px bg-border" />
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="flex w-full items-center rounded-sm px-2 py-1.5 text-sm text-destructive hover:bg-muted"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      void report();
+                    }}
+                  >
+                    <Flag className="mr-2 h-4 w-4" /> Denunciar
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
           <h2 className="mt-2 text-base font-semibold">{post.title}</h2>
           {post.description && <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">{post.description}</p>}
