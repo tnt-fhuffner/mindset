@@ -35,7 +35,17 @@ export function AiAssistantPanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt, mode }),
       });
-      const payload = await response.json();
+      const raw = await response.text();
+      let payload: { error?: string; title?: string; summary?: string; nodes?: unknown[] } = {};
+      try {
+        payload = raw ? JSON.parse(raw) : {};
+      } catch {
+        throw new Error(
+          raw?.trim()
+            ? "A API da IA devolveu uma resposta inválida."
+            : "A API da IA não respondeu. Confira ANTHROPIC_API_KEY na Vercel e o SQL consume_ai_credit no Supabase."
+        );
+      }
       if (!response.ok) throw new Error(payload.error ?? "Falha ao gerar com IA.");
       onApply(
         buildMindMapFromOutline(payload.title ?? "Mapa gerado", payload.nodes ?? []),

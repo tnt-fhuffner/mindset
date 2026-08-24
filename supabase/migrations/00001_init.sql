@@ -444,13 +444,13 @@ begin
     raise exception 'not authenticated';
   end if;
 
-  insert into public.ai_usage (user_id, month, used)
+  insert into public.ai_usage as u (user_id, month, used)
   values (me, month_start, 0)
   on conflict (user_id, month) do nothing;
 
-  select ai_usage.used into current_used
-  from public.ai_usage
-  where user_id = me and month = month_start
+  select u.used into current_used
+  from public.ai_usage as u
+  where u.user_id = me and u.month = month_start
   for update;
 
   if current_used >= p_limit then
@@ -458,10 +458,10 @@ begin
     return;
   end if;
 
-  update public.ai_usage
-  set used = used + 1
-  where user_id = me and month = month_start
-  returning public.ai_usage.used into current_used;
+  update public.ai_usage as u
+  set used = u.used + 1
+  where u.user_id = me and u.month = month_start
+  returning u.used into current_used;
 
   insert into public.ai_events (user_id, kind) values (me, 'generate');
 
