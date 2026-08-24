@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { rateLimit } from "@/lib/rate-limit";
+import { ensureProfile } from "@/lib/ensure-profile";
 import { createServiceClient } from "@/lib/supabase/admin";
 
 const signupSchema = z.object({
@@ -11,7 +12,7 @@ const signupSchema = z.object({
 
 export async function POST(request: Request) {
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-  const limited = rateLimit(`signup:${ip}`, 8, 60 * 60 * 1000);
+  const limited = rateLimit(`signup:${ip}`, 30, 60 * 60 * 1000);
   if (!limited.ok) {
     return NextResponse.json(
       { error: "Muitas contas criadas deste endereço. Espere alguns minutos." },
@@ -32,7 +33,7 @@ export async function POST(request: Request) {
 
   try {
     const admin = createServiceClient();
-    const { error } = await admin.auth.admin.createUser({
+    const { data, error } = await admin.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
@@ -48,6 +49,15 @@ export async function POST(request: Request) {
         );
       }
       return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
+    if (data.user) {
+      await ensureProfile(admin, {
+        id: data.user.id,
+        email,
+        displayName: name,
+        role: "user",
+      });
     }
 
     return NextResponse.json({ ok: true });

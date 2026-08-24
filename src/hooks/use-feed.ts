@@ -25,7 +25,7 @@ export function useFeed(mode: "all" | "following" = "all") {
 
       let query = supabase
         .from("posts")
-        .select("*, author:profiles!posts_author_id_fkey(*), mind_map:mind_maps(id,title,share_token,visibility)")
+        .select("*, author:profiles!posts_author_id_fkey(*), mind_map:mind_maps(id,title,share_token,visibility,thumbnail_url)")
         .order("created_at", { ascending: false })
         .limit(50);
 

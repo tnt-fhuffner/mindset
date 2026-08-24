@@ -11,7 +11,7 @@ export default async function UserProfilePage({ params }: { params: { username: 
   if (!profile || profile.is_blocked) notFound();
 
   const [{ data: posts }, { data: maps }] = await Promise.all([
-    supabase.from("posts").select("*").eq("author_id", profile.id).order("created_at", { ascending: false }),
+    supabase.from("posts").select("*, mind_map:mind_maps(id,title,share_token,visibility,thumbnail_url)").eq("author_id", profile.id).order("created_at", { ascending: false }),
     supabase.from("mind_maps").select("*").eq("owner_id", profile.id).eq("visibility", "public").order("updated_at", { ascending: false }),
   ]);
 

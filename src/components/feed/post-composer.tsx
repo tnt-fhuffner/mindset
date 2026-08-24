@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,9 +18,12 @@ import {
 import { POST_TYPES } from "@/lib/constants";
 import { useMindMaps } from "@/hooks/use-maps";
 import { createClient } from "@/lib/supabase/client";
+import { makePostThumbnail } from "@/lib/post-thumbnail";
+import { insertPost, uploadBlob } from "@/lib/posts";
 
 export function PostComposer() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const maps = useMindMaps();
   const [type, setType] = useState("article");
   const [title, setTitle] = useState("");
@@ -44,18 +48,33 @@ export function PostComposer() {
       let file_size: number | null = null;
 
       if (file && ["pdf", "ebook", "image"].includes(type)) {
-        const body = new FormData();
-        body.append("file", file);
-        const response = await fetch("/api/upload", { method: "POST", body });
-        const payload = await response.json();
-        if (!response.ok) throw new Error(payload.error ?? "Falha no upload.");
+        const payload = await uploadBlob(file, file.name);
         file_url = payload.publicUrl;
         file_path = payload.path;
         file_mime = payload.mime;
         file_size = payload.size;
       }
 
-      const { error } = await supabase.from("posts").insert({
+      let thumbnail_url: string | null = null;
+      if (type === "image" && file_url) {
+        thumbnail_url = file_url;
+      } else if (type === "map") {
+        thumbnail_url = maps.data?.find((item) => item.id === mapId)?.thumbnail_url ?? null;
+      }
+      if (!thumbnail_url) {
+        try {
+          const cover = await makePostThumbnail({ title, type, file });
+          const mime = cover.type || "image/jpeg";
+          const ext = mime.includes("png") ? "png" : mime.includes("webp") ? "webp" : "jpg";
+          const coverFile = new File([cover], `cover.${ext}`, { type: mime });
+          const thumb = await uploadBlob(coverFile, coverFile.name);
+          thumbnail_url = thumb.publicUrl;
+        } catch {
+          thumbnail_url = null;
+        }
+      }
+
+      const { error } = await insertPost({
         author_id: user.id,
         type,
         title,
@@ -66,8 +85,10 @@ export function PostComposer() {
         file_path,
         file_mime,
         file_size,
+        thumbnail_url,
       });
       if (error) throw error;
+      await queryClient.invalidateQueries({ queryKey: ["feed"] });
       toast.success("Publicação criada.");
       router.push("/feed");
       router.refresh();

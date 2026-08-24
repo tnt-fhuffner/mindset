@@ -1,15 +1,30 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { createClient } from "@/lib/supabase/client";
 import type { AdminMetrics, Profile, Report } from "@/types";
 
 export default function AdminPage() {
   const supabase = createClient();
+  const [displayName, setDisplayName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState<"user" | "admin">("user");
+  const [creating, setCreating] = useState(false);
   const metrics = useQuery({
     queryKey: ["admin-metrics"],
     queryFn: async () => {
@@ -67,6 +82,30 @@ export default function AdminPage() {
     }
   }
 
+  async function createUser() {
+    setCreating(true);
+    try {
+      const response = await fetch("/api/admin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, displayName, role }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error ?? "Não foi possível criar o usuário.");
+      toast.success("Usuário criado. Já pode entrar com e-mail e senha.");
+      setDisplayName("");
+      setEmail("");
+      setPassword("");
+      setRole("user");
+      users.refetch();
+      metrics.refetch();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao criar usuário.");
+    } finally {
+      setCreating(false);
+    }
+  }
+
   const m = metrics.data;
 
   return (
@@ -88,7 +127,61 @@ export default function AdminPage() {
           <TabsTrigger value="users">Usuários</TabsTrigger>
           <TabsTrigger value="reports">Denúncias</TabsTrigger>
         </TabsList>
-        <TabsContent value="users" className="space-y-2">
+        <TabsContent value="users" className="space-y-4">
+          <Card className="space-y-4 p-4">
+            <div>
+              <p className="font-medium">Adicionar pessoa</p>
+              <p className="text-sm text-muted-foreground">
+                Cria a conta já confirmada. A pessoa entra na hora com o e-mail e a senha.
+              </p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="admin-name">Nome</Label>
+                <Input
+                  id="admin-name"
+                  value={displayName}
+                  onChange={(event) => setDisplayName(event.target.value)}
+                  placeholder="Nome que aparece no app"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="admin-email">E-mail</Label>
+                <Input
+                  id="admin-email"
+                  type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  placeholder="email@exemplo.com"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="admin-password">Senha</Label>
+                <Input
+                  id="admin-password"
+                  type="password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder="Mínimo 8 caracteres"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Função</Label>
+                <Select value={role} onValueChange={(value) => setRole(value as "user" | "admin")}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="user">Usuário</SelectItem>
+                    <SelectItem value="admin">Administrador</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <Button disabled={creating} onClick={() => void createUser()}>
+              {creating ? "Criando…" : "Criar conta"}
+            </Button>
+          </Card>
           {(users.data ?? []).map((user) => (
             <div key={user.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3 text-sm">
               <div>

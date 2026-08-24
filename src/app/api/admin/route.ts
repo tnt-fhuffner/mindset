@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
+import { ensureProfile } from "@/lib/ensure-profile";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/admin";
 
@@ -13,6 +15,49 @@ async function requireAdmin() {
     return { error: NextResponse.json({ error: "Acesso negado." }, { status: 403 }) };
   }
   return { user };
+}
+
+const createUserSchema = z.object({
+  email: z.string().trim().email(),
+  password: z.string().min(8).max(72),
+  displayName: z.string().trim().min(2).max(80),
+  role: z.enum(["admin", "user"]).optional(),
+});
+
+export async function POST(request: Request) {
+  const auth = await requireAdmin();
+  if ("error" in auth && auth.error) return auth.error;
+  const parsed = createUserSchema.safeParse(await request.json().catch(() => ({})));
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Informe nome, e-mail válido e senha com pelo menos 8 caracteres." },
+      { status: 400 }
+    );
+  }
+
+  try {
+    const admin = createServiceClient();
+    const { data, error } = await admin.auth.admin.createUser({
+      email: parsed.data.email,
+      password: parsed.data.password,
+      email_confirm: true,
+      user_metadata: { full_name: parsed.data.displayName, name: parsed.data.displayName },
+    });
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    if (!data.user) return NextResponse.json({ error: "Usuário não foi criado." }, { status: 400 });
+    await ensureProfile(admin, {
+      id: data.user.id,
+      email: parsed.data.email,
+      displayName: parsed.data.displayName,
+      role: parsed.data.role ?? "user",
+    });
+    return NextResponse.json({ ok: true, userId: data.user.id });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Falha ao criar usuário." },
+      { status: 500 }
+    );
+  }
 }
 
 export async function PATCH(request: Request) {

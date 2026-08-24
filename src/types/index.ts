@@ -73,13 +73,14 @@ export type Post = {
   file_path: string | null;
   file_mime: string | null;
   file_size: number | null;
+  thumbnail_url: string | null;
   link_url: string | null;
   mind_map_id: string | null;
   download_count: number;
   created_at: string;
   updated_at: string;
   author?: Profile;
-  mind_map?: Pick<MindMap, "id" | "title" | "share_token" | "visibility"> | null;
+  mind_map?: Pick<MindMap, "id" | "title" | "share_token" | "visibility" | "thumbnail_url"> | null;
   like_count?: number;
   comment_count?: number;
   liked_by_me?: boolean;

@@ -11,6 +11,11 @@ const nextConfig = {
     serverActions: {
       bodySizeLimit: "12mb",
     },
+    serverComponentsExternalPackages: ["pdfjs-dist"],
+  },
+  webpack: (config) => {
+    config.resolve.alias.canvas = false;
+    return config;
   },
 };
 

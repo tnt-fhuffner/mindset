@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { PostCover } from "@/components/feed/post-cover";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -68,6 +69,7 @@ export function PublicProfile({
             <Card key={post.id} className="p-4">
               <p className="font-medium">{post.title}</p>
               <p className="text-sm text-muted-foreground">{post.description}</p>
+              <PostCover post={post} />
             </Card>
           ))}
         </div>
