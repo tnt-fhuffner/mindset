@@ -2,26 +2,77 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: 32 33% 97%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 248 72% 48%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 30 33% 94%;
+    --secondary-foreground: 222 32% 20%;
+    --muted: 30 20% 93%;
+    --muted-foreground: 220 10% 40%;
+    --accent: 168 62% 32%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 30 18% 86%;
+    --input: 30 18% 86%;
+    --ring: 248 72% 48%;
+    --map: 248 72% 48%;
+    --map-foreground: 0 0% 100%;
+    --radius: 0.85rem;
+  }
+
+  .dark {
+    --background: 228 28% 7%;
+    --foreground: 40 20% 96%;
+    --card: 228 24% 10%;
+    --card-foreground: 40 20% 96%;
+    --popover: 228 24% 10%;
+    --popover-foreground: 40 20% 96%;
+    --primary: 250 86% 74%;
+    --primary-foreground: 248 50% 12%;
+    --secondary: 228 18% 16%;
+    --secondary-foreground: 40 20% 96%;
+    --muted: 228 16% 16%;
+    --muted-foreground: 220 10% 70%;
+    --accent: 166 55% 48%;
+    --accent-foreground: 166 70% 8%;
+    --destructive: 0 70% 48%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 228 16% 18%;
+    --input: 228 16% 18%;
+    --ring: 250 86% 74%;
+    --map: 250 86% 74%;
+    --map-foreground: 248 50% 12%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    @apply scroll-smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
   }
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+.react-flow__attribution {
+  display: none !important;
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
+.map-canvas .react-flow__node {
+  cursor: grab;
+}
+
+.map-canvas .react-flow__node:active {
+  cursor: grabbing;
 }

@@ -1,0 +1,31 @@
+import { notFound } from "next/navigation";
+import Link from "next/link";
+import { MindMapEditor } from "@/components/maps/mind-map-editor";
+import { Logo } from "@/components/logo";
+import { AI_MONTHLY_LIMIT } from "@/lib/constants";
+import { createClient } from "@/lib/supabase/server";
+import type { MindMap } from "@/types";
+
+export default async function SharedMapPage({ params }: { params: { token: string } }) {
+  const supabase = await createClient();
+  const { data: map } = await supabase
+    .from("mind_maps")
+    .select("*")
+    .eq("share_token", params.token)
+    .maybeSingle();
+  if (!map || map.visibility === "private") notFound();
+
+  return (
+    <div className="h-screen">
+      <header className="flex h-16 items-center justify-between border-b px-4">
+        <Link href="/">
+          <Logo />
+        </Link>
+        <p className="text-sm text-muted-foreground">{map.title}</p>
+      </header>
+      <div className="h-[calc(100vh-4rem)]">
+        <MindMapEditor map={map as MindMap} readOnly remaining={0} limit={AI_MONTHLY_LIMIT} />
+      </div>
+    </div>
+  );
+}
