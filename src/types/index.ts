@@ -59,6 +59,7 @@ export type MindMap = {
   visibility: "private" | "public" | "unlisted";
   share_token: string;
   thumbnail_url: string | null;
+  collaborative?: boolean;
   created_at: string;
   updated_at: string;
 };

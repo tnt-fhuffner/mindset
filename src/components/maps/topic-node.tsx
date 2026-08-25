@@ -22,7 +22,7 @@ function TopicNodeComponent({ data, selected }: NodeProps<TopicFlowNode>) {
   return (
     <div
       className={cn(
-        "min-w-[160px] max-w-[240px] rounded-2xl border-2 bg-card px-3 py-2 shadow-sm",
+        "min-w-[180px] max-w-[280px] rounded-2xl border-2 bg-card px-3 py-2 shadow-sm",
         selected && "ring-2 ring-ring ring-offset-2 ring-offset-background"
       )}
       style={{ borderColor: data.color }}
@@ -37,7 +37,9 @@ function TopicNodeComponent({ data, selected }: NodeProps<TopicFlowNode>) {
         </span>
         <div>
           <p className="text-sm font-semibold leading-tight">{data.label}</p>
-          {data.notes && <p className="mt-1 text-xs text-muted-foreground line-clamp-3">{data.notes}</p>}
+          {data.notes && (
+            <p className="mt-1 whitespace-pre-wrap text-xs text-muted-foreground line-clamp-4">{data.notes}</p>
+          )}
         </div>
       </div>
       <Handle type="source" position={Position.Right} className="!h-2.5 !w-2.5" />

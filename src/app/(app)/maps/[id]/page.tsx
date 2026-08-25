@@ -24,13 +24,15 @@ export default async function MapEditorPage({ params }: { params: { id: string }
 
   const used = usage?.used ?? 0;
   const remaining = Math.max(AI_MONTHLY_LIMIT - used, 0);
-  const readOnly = user?.id !== map.owner_id;
+  const isOwner = user?.id === map.owner_id;
+  const canEdit = Boolean(isOwner || (user && map.collaborative && map.visibility !== "private"));
 
   return (
     <div className="h-[calc(100vh-4rem)]">
       <MindMapEditor
         map={map as MindMap}
-        readOnly={readOnly}
+        readOnly={!canEdit}
+        isOwner={isOwner}
         remaining={remaining}
         limit={AI_MONTHLY_LIMIT}
       />

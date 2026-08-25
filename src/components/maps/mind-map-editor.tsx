@@ -33,6 +33,7 @@ import { exportMap } from "@/components/maps/export-map";
 import { NODE_ICONS, nodeTypes } from "@/components/maps/topic-node";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -48,34 +49,49 @@ import {
 } from "@/components/ui/select";
 import { NODE_COLORS } from "@/lib/constants";
 import { layoutExistingMap } from "@/lib/mind-map";
+import { useMapCollab } from "@/hooks/use-map-collab";
 import { useSaveMindMap } from "@/hooks/use-maps";
+import { useProfile } from "@/hooks/use-profile";
 import { cn } from "@/lib/utils";
 import type { MindMap, MindMapContent } from "@/types";
+
+const EDGE_STYLE = { stroke: "#64748b", strokeWidth: 2 };
 
 type HistoryState = { nodes: Node[]; edges: Edge[] };
 
 function EditorCanvas({
   map,
   readOnly,
+  isOwner,
   remaining,
   limit,
 }: {
   map: MindMap;
   readOnly?: boolean;
+  isOwner?: boolean;
   remaining: number;
   limit: number;
 }) {
   const save = useSaveMindMap();
-  const { fitView } = useReactFlow();
+  const { fitView, getNodes } = useReactFlow();
+  const { data: profile } = useProfile();
   const [title, setTitle] = useState(map.title);
   const [visibility, setVisibility] = useState(map.visibility);
+  const [collaborative, setCollaborative] = useState(Boolean(map.collaborative));
   const [aiOpen, setAiOpen] = useState(false);
   const [nodes, setNodes, onNodesChange] = useNodesState(map.content.nodes as Node[]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(map.content.edges as Edge[]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(
+    (map.content.edges as Edge[]).map((edge) => ({
+      ...edge,
+      type: edge.type ?? "smoothstep",
+      style: { ...EDGE_STYLE, ...edge.style },
+    })) as Edge[]
+  );
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const history = useRef<HistoryState[]>([]);
   const future = useRef<HistoryState[]>([]);
   const skipHistory = useRef(false);
+  const applyingRemote = useRef(false);
   const debounce = useRef<ReturnType<typeof setTimeout>>();
 
   const selected = nodes.find((node) => node.id === selectedId);
@@ -90,7 +106,7 @@ function EditorCanvas({
   const onConnect = useCallback(
     (connection: Connection) => {
       setEdges((current) => {
-        const next = addEdge({ ...connection, type: "smoothstep" }, current);
+        const next = addEdge({ ...connection, type: "smoothstep", style: EDGE_STYLE }, current);
         pushHistory(nodes, next);
         return next;
       });
@@ -98,36 +114,80 @@ function EditorCanvas({
     [nodes, pushHistory, setEdges]
   );
 
-  function persist(next?: Partial<{ title: string; visibility: MindMap["visibility"]; content: MindMapContent }>) {
-    if (readOnly) return;
+  const applyRemote = useCallback((content: MindMapContent, nextTitle: string) => {
+    applyingRemote.current = true;
+    skipHistory.current = true;
+    setNodes(content.nodes as Node[]);
+    setEdges(
+      content.edges.map((edge) => ({
+        ...edge,
+        type: edge.type ?? "smoothstep",
+        style: EDGE_STYLE,
+      })) as Edge[]
+    );
+    if (nextTitle) setTitle(nextTitle);
+    skipHistory.current = false;
+    requestAnimationFrame(() => {
+      applyingRemote.current = false;
+    });
+  }, [setEdges, setNodes]);
+
+  const collab = useMapCollab({
+    mapId: map.id,
+    enabled: true,
+    self: profile ? { id: profile.id, name: profile.display_name } : null,
+    onRemote: applyRemote,
+  });
+
+  function mapContent(nextNodes = nodes, nextEdges = edges): MindMapContent {
+    return {
+      nodes: nextNodes.map((node) => ({
+        id: node.id,
+        type: node.type,
+        position: node.position,
+        data: node.data as MindMapContent["nodes"][number]["data"],
+      })),
+      edges: nextEdges.map((edge) => ({
+        id: edge.id,
+        source: edge.source,
+        target: edge.target,
+        type: edge.type ?? "smoothstep",
+      })),
+    };
+  }
+
+  function persist(
+    next?: Partial<{
+      title: string;
+      visibility: MindMap["visibility"];
+      collaborative: boolean;
+      content: MindMapContent;
+    }>
+  ) {
+    if (readOnly || applyingRemote.current) return;
+    const content = next?.content ?? mapContent();
+    const nextTitle = next?.title ?? title;
+    collab.markLocal(content, nextTitle);
     save.mutate({
       id: map.id,
-      title: next?.title ?? title,
-      visibility: next?.visibility ?? visibility,
-      content: next?.content ?? {
-        nodes: nodes.map((node) => ({
-          id: node.id,
-          type: node.type,
-          position: node.position,
-          data: node.data as MindMapContent["nodes"][number]["data"],
-        })),
-        edges: edges.map((edge) => ({
-          id: edge.id,
-          source: edge.source,
-          target: edge.target,
-          type: edge.type,
-        })),
-      },
+      title: nextTitle,
+      content,
+      ...(isOwner
+        ? {
+            visibility: next?.visibility ?? visibility,
+            collaborative: next?.collaborative ?? collaborative,
+          }
+        : {}),
     });
   }
 
   useEffect(() => {
     if (readOnly) return;
     clearTimeout(debounce.current);
-    debounce.current = setTimeout(() => persist(), 1400);
+    debounce.current = setTimeout(() => persist(), 1600);
     return () => clearTimeout(debounce.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nodes, edges, title, visibility]);
+  }, [nodes, edges, title, visibility, collaborative]);
 
   function addNode() {
     const id = crypto.randomUUID();
@@ -139,7 +199,7 @@ function EditorCanvas({
     };
     const nextNodes = [...nodes, next];
     if (selectedId) {
-      const nextEdges = [...edges, { id: `${selectedId}-${id}`, source: selectedId, target: id, type: "smoothstep" }];
+      const nextEdges = [...edges, { id: `${selectedId}-${id}`, source: selectedId, target: id, type: "smoothstep", style: EDGE_STYLE }];
       setEdges(nextEdges);
       pushHistory(nextNodes, nextEdges);
     } else {
@@ -162,7 +222,13 @@ function EditorCanvas({
   function applyContent(content: MindMapContent, nextTitle?: string) {
     skipHistory.current = true;
     setNodes(content.nodes as Node[]);
-    setEdges(content.edges as Edge[]);
+    setEdges(
+      (content.edges as Edge[]).map((edge) => ({
+        ...edge,
+        type: edge.type ?? "smoothstep",
+        style: EDGE_STYLE,
+      }))
+    );
     if (nextTitle) setTitle(nextTitle);
     skipHistory.current = false;
     pushHistory(content.nodes as Node[], content.edges as Edge[]);
@@ -199,10 +265,7 @@ function EditorCanvas({
 
   async function onExport(format: "png" | "svg" | "pdf" | "json") {
     try {
-      await exportMap(format, title, nodes, edges, {
-        nodes: nodes as MindMapContent["nodes"],
-        edges: edges as MindMapContent["edges"],
-      });
+      await exportMap(format, title, getNodes(), edges, mapContent());
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Falha ao exportar.");
     }
@@ -249,6 +312,34 @@ function EditorCanvas({
               <SelectItem value="public">Público</SelectItem>
             </SelectContent>
           </Select>
+        )}
+        {isOwner && !readOnly && (
+          <label className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Switch
+              checked={collaborative}
+              onCheckedChange={(checked) => {
+                setCollaborative(checked);
+                if (checked && visibility === "private") setVisibility("unlisted");
+                toast.success(checked ? "Outras pessoas com o link podem editar junto." : "Só você edita este mapa.");
+              }}
+            />
+            Editar juntos
+          </label>
+        )}
+        {collab.peers.length > 0 && (
+          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+            {collab.peers.map((peer) => (
+              <span
+                key={peer.id}
+                title={peer.name}
+                className="flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-semibold text-white"
+                style={{ backgroundColor: peer.color }}
+              >
+                {peer.name.slice(0, 1).toUpperCase()}
+              </span>
+            ))}
+            online
+          </div>
         )}
         <div className="ml-auto flex flex-wrap items-center gap-1">
           {!readOnly && (
@@ -360,6 +451,18 @@ function EditorCanvas({
               ))}
             </SelectContent>
           </Select>
+          <Input
+            value={String(selected.data.notes ?? "")}
+            className="h-8 min-w-[200px] flex-1"
+            placeholder="Comentário neste balão"
+            onChange={(event) =>
+              setNodes((current) =>
+                current.map((node) =>
+                  node.id === selected.id ? { ...node, data: { ...node.data, notes: event.target.value } } : node
+                )
+              )
+            }
+          />
         </div>
       )}
 
@@ -372,6 +475,7 @@ function EditorCanvas({
             onEdgesChange={readOnly ? undefined : onEdgesChange}
             onConnect={readOnly ? undefined : onConnect}
             nodeTypes={nodeTypes}
+            defaultEdgeOptions={{ type: "smoothstep", style: EDGE_STYLE }}
             fitView
             onNodeClick={(_, node) => setSelectedId(node.id)}
             onPaneClick={() => setSelectedId(null)}
@@ -399,6 +503,7 @@ function EditorCanvas({
 export function MindMapEditor(props: {
   map: MindMap;
   readOnly?: boolean;
+  isOwner?: boolean;
   remaining: number;
   limit: number;
 }) {

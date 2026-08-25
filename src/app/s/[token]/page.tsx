@@ -15,16 +15,30 @@ export default async function SharedMapPage({ params }: { params: { token: strin
     .maybeSingle();
   if (!map || map.visibility === "private") notFound();
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const canEdit = Boolean(user && map.collaborative);
+
   return (
     <div className="h-screen">
       <header className="flex h-16 items-center justify-between border-b px-4">
         <Link href="/">
           <Logo />
         </Link>
-        <p className="text-sm text-muted-foreground">{map.title}</p>
+        <p className="text-sm text-muted-foreground">
+          {map.title}
+          {canEdit ? " · edição conjunta" : ""}
+        </p>
       </header>
       <div className="h-[calc(100vh-4rem)]">
-        <MindMapEditor map={map as MindMap} readOnly remaining={0} limit={AI_MONTHLY_LIMIT} />
+        <MindMapEditor
+          map={map as MindMap}
+          readOnly={!canEdit}
+          isOwner={user?.id === map.owner_id}
+          remaining={0}
+          limit={AI_MONTHLY_LIMIT}
+        />
       </div>
     </div>
   );

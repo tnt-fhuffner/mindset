@@ -88,10 +88,18 @@ export function useSaveMindMap() {
       content?: MindMapContent;
       visibility?: MindMap["visibility"];
       folder_id?: string | null;
+      collaborative?: boolean;
     }) => {
       const { id, ...rest } = input;
-      const { error } = await supabase.from("mind_maps").update(rest).eq("id", id);
-      if (error) throw error;
+      const first = await supabase.from("mind_maps").update(rest).eq("id", id);
+      if (first.error && first.error.message.toLowerCase().includes("collaborative")) {
+        const retry = { ...rest };
+        delete retry.collaborative;
+        const { error } = await supabase.from("mind_maps").update(retry).eq("id", id);
+        if (error) throw error;
+        return;
+      }
+      if (first.error) throw first.error;
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["map", variables.id] });

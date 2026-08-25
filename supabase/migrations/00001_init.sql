@@ -75,6 +75,7 @@ create table if not exists public.mind_maps (
   visibility text not null default 'private' check (visibility in ('private', 'public', 'unlisted')),
   share_token uuid not null default gen_random_uuid(),
   thumbnail_url text,
+  collaborative boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -578,7 +579,25 @@ create policy "maps_select" on public.mind_maps
 create policy "maps_insert" on public.mind_maps
   for insert with check (owner_id = auth.uid());
 create policy "maps_update" on public.mind_maps
-  for update using (owner_id = auth.uid() or public.is_admin());
+  for update
+  using (
+    owner_id = auth.uid()
+    or public.is_admin()
+    or (
+      collaborative = true
+      and visibility in ('public', 'unlisted')
+      and auth.uid() is not null
+    )
+  )
+  with check (
+    owner_id = auth.uid()
+    or public.is_admin()
+    or (
+      collaborative = true
+      and visibility in ('public', 'unlisted')
+      and auth.uid() is not null
+    )
+  );
 create policy "maps_delete" on public.mind_maps
   for delete using (owner_id = auth.uid() or public.is_admin());
 
@@ -713,6 +732,7 @@ alter table public.messages replica identity full;
 alter table public.notifications replica identity full;
 alter table public.likes replica identity full;
 alter table public.comments replica identity full;
+alter table public.mind_maps replica identity full;
 
 do $$
 begin
@@ -730,6 +750,10 @@ begin
   end;
   begin
     alter publication supabase_realtime add table public.comments;
+  exception when duplicate_object then null;
+  end;
+  begin
+    alter publication supabase_realtime add table public.mind_maps;
   exception when duplicate_object then null;
   end;
 end $$;
