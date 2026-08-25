@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { PostCard } from "@/components/feed/post-card";
+import { WhoToFollow } from "@/components/people/who-to-follow";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useFeed } from "@/hooks/use-feed";
@@ -28,9 +29,18 @@ export default function FeedPage() {
       {(feed.data ?? []).map((post) => (
         <PostCard key={post.id} post={post} />
       ))}
-      {feed.data?.length === 0 && (
+      {feed.data?.length === 0 && mode === "following" && (
+        <div className="space-y-4 rounded-xl border p-6 text-center">
+          <p className="text-sm text-muted-foreground">Você ainda não segue ninguém, ou quem você segue ainda não publicou.</p>
+          <Button asChild>
+            <Link href="/people">Descobrir pessoas</Link>
+          </Button>
+        </div>
+      )}
+      {feed.data?.length === 0 && mode === "all" && (
         <p className="text-sm text-muted-foreground">Nada por aqui ainda. Publique um PDF, um artigo ou um mapa.</p>
       )}
+      <WhoToFollow />
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useFollow } from "@/hooks/use-feed";
+import { useFollowCounts } from "@/hooks/use-people";
 import { useProfile } from "@/hooks/use-profile";
 import { formatRelative, initials } from "@/lib/utils";
 import type { MindMap, Post, Profile } from "@/types";
@@ -22,6 +23,7 @@ export function PublicProfile({
 }) {
   const { data: me } = useProfile();
   const follow = useFollow(profile.id);
+  const counts = useFollowCounts(profile.id);
   const router = useRouter();
   const isSelf = me?.id === profile.id;
 
@@ -35,6 +37,11 @@ export function PublicProfile({
         <div className="flex-1">
           <h1 className="text-2xl font-semibold">{profile.display_name}</h1>
           <p className="text-sm text-muted-foreground">@{profile.username}</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            <span className="font-medium text-foreground">{counts.data?.followers ?? 0}</span> seguidores
+            <span className="mx-2">·</span>
+            <span className="font-medium text-foreground">{counts.data?.following ?? 0}</span> seguindo
+          </p>
           {profile.bio && <p className="mt-2 text-sm">{profile.bio}</p>}
         </div>
         {!isSelf && me && (

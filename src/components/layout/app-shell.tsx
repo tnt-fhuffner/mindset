@@ -12,6 +12,7 @@ import {
   Settings,
   Shield,
   UserRound,
+  Users,
 } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -33,6 +34,7 @@ import { cn, initials } from "@/lib/utils";
 const NAV = [
   { href: "/maps", label: "Mapas", icon: LayoutGrid },
   { href: "/feed", label: "Timeline", icon: BookOpen },
+  { href: "/people", label: "Pessoas", icon: Users },
   { href: "/messages", label: "Mensagens", icon: MessageCircle },
 ];
 
@@ -144,7 +146,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
         <main className="min-h-[calc(100vh-4rem)] md:pb-0 pb-14">{children}</main>
-        <nav className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-4 border-t bg-background md:hidden">
+        <nav className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 border-t bg-background md:hidden">
           {NAV.map((item) => {
             const Icon = item.icon;
             return (

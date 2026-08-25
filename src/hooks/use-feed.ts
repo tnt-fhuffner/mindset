@@ -167,6 +167,8 @@ export function useFollow(userId?: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["follow", userId] });
       queryClient.invalidateQueries({ queryKey: ["feed"] });
+      queryClient.invalidateQueries({ queryKey: ["people"] });
+      queryClient.invalidateQueries({ queryKey: ["follow-counts"] });
     },
   });
 
