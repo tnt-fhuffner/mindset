@@ -84,8 +84,8 @@ export default function AdminPage() {
   }
 
   async function createUser() {
-    if (displayName.trim().length < 2 || !email.includes("@") || password.length < 8) {
-      toast.error("Informe nome, e-mail válido e senha com pelo menos 8 caracteres.");
+    if (!email.includes("@") || password.length < 6) {
+      toast.error("Informe e-mail e senha com pelo menos 6 caracteres.");
       return;
     }
     setCreating(true);
@@ -174,7 +174,7 @@ export default function AdminPage() {
                   type="password"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
-                  placeholder="Mínimo 8 caracteres"
+                  placeholder="Mínimo 6 caracteres"
                 />
               </div>
               <div className="space-y-2">

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/supabase/client";
-import { getAppUrl, isSupabaseConfigured } from "@/lib/utils";
+import { getAppUrl, isSupabaseConfigured, safeAppPath } from "@/lib/utils";
 
 function GoogleIcon() {
   return (
@@ -45,7 +45,7 @@ function friendlyAuthError(message: string) {
 
 export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const params = useSearchParams();
-  const next = params.get("next") || "/maps";
+  const next = safeAppPath(params.get("next"));
   const queryError = params.get("error");
   const errorCode = params.get("error_code");
   const blocked = params.get("blocked") === "1";
@@ -68,7 +68,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   }
 
   function goToApp() {
-    window.location.assign(next.startsWith("/") ? next : "/maps");
+    window.location.assign(next);
   }
 
   async function withGoogle() {
@@ -98,8 +98,8 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
       toast.error("Supabase não configurado neste deploy.");
       return;
     }
-    if (!email.trim() || password.length < 8) {
-      toast.error("Informe um e-mail válido e uma senha com pelo menos 8 caracteres.");
+    if (!email.trim() || password.length < 6) {
+      toast.error("Informe um e-mail e uma senha com pelo menos 6 caracteres.");
       return;
     }
     setLoading(true);
@@ -183,8 +183,8 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             required
-            minLength={8}
-            placeholder="Mínimo 8 caracteres"
+            minLength={6}
+            placeholder="Mínimo 6 caracteres"
           />
         </div>
         <Button className="w-full" disabled={loading || !configured} type="submit">

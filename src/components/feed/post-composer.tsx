@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -15,23 +15,33 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { POST_TYPES } from "@/lib/constants";
+import { POST_TYPES, type PostType } from "@/lib/constants";
 import { useMindMaps } from "@/hooks/use-maps";
 import { createClient } from "@/lib/supabase/client";
-import { makePostThumbnail } from "@/lib/post-thumbnail";
-import { insertPost, uploadBlob } from "@/lib/posts";
+import { buildAndUploadThumbnail, insertPost, updatePost, uploadBlob } from "@/lib/posts";
+import type { Post } from "@/types";
 
-export function PostComposer() {
+export function PostComposer({ post }: { post?: Post }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const maps = useMindMaps();
-  const [type, setType] = useState("article");
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [link, setLink] = useState("");
-  const [mapId, setMapId] = useState<string>("");
+  const editing = Boolean(post);
+  const [type, setType] = useState<PostType>(post?.type ?? "article");
+  const [title, setTitle] = useState(post?.title ?? "");
+  const [description, setDescription] = useState(post?.description ?? "");
+  const [link, setLink] = useState(post?.link_url ?? "");
+  const [mapId, setMapId] = useState<string>(post?.mind_map_id ?? "");
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!post) return;
+    setType(post.type);
+    setTitle(post.title);
+    setDescription(post.description ?? "");
+    setLink(post.link_url ?? "");
+    setMapId(post.mind_map_id ?? "");
+  }, [post]);
 
   async function submit() {
     setLoading(true);
@@ -41,15 +51,17 @@ export function PostComposer() {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) throw new Error("Faça login.");
-
-      let file_url: string | null = null;
-      let file_path: string | null = null;
-      let file_mime: string | null = null;
-      let file_size: number | null = null;
-
-      if (["pdf", "ebook", "image"].includes(type) && !file) {
-        throw new Error("Selecione um arquivo para publicar.");
+      if (title.trim().length < 2) throw new Error("Dê um título para a publicação.");
+      if (type === "link" && !link.trim()) throw new Error("Cole o link.");
+      if (type === "map" && !mapId) throw new Error("Escolha um mapa.");
+      if (["pdf", "ebook", "image"].includes(type) && !file && !post?.file_url) {
+        throw new Error("Selecione um arquivo.");
       }
+
+      let file_url: string | null = post?.file_url ?? null;
+      let file_path: string | null = post?.file_path ?? null;
+      let file_mime: string | null = post?.file_mime ?? null;
+      let file_size: number | null = post?.file_size ?? null;
 
       if (file && ["pdf", "ebook", "image"].includes(type)) {
         const payload = await uploadBlob(file, file.name);
@@ -59,42 +71,44 @@ export function PostComposer() {
         file_size = payload.size;
       }
 
-      let thumbnail_url: string | null = null;
-      if (type === "image" && file_url) {
-        thumbnail_url = file_url;
-      } else if (type === "map") {
-        thumbnail_url = maps.data?.find((item) => item.id === mapId)?.thumbnail_url ?? null;
-      }
-      if (!thumbnail_url) {
-        try {
-          const cover = await makePostThumbnail({ title, type, file });
-          const mime = cover.type || "image/jpeg";
-          const ext = mime.includes("png") ? "png" : mime.includes("webp") ? "webp" : "jpg";
-          const coverFile = new File([cover], `cover.${ext}`, { type: mime });
-          const thumb = await uploadBlob(coverFile, coverFile.name);
-          thumbnail_url = thumb.publicUrl;
-        } catch {
-          thumbnail_url = null;
-        }
+      let thumbnail_url: string | null = post?.thumbnail_url ?? null;
+      try {
+        thumbnail_url = await buildAndUploadThumbnail({
+          title,
+          type,
+          file,
+          fileUrl: file_url,
+          mapThumb: maps.data?.find((item) => item.id === mapId)?.thumbnail_url,
+        });
+      } catch {
+        if (type === "image" && file_url) thumbnail_url = file_url;
       }
 
-      const { error } = await insertPost({
-        author_id: user.id,
+      const row = {
         type,
-        title,
-        description,
-        link_url: type === "link" ? link : null,
+        title: title.trim(),
+        description: description.trim() || null,
+        link_url: type === "link" ? link.trim() : null,
         mind_map_id: type === "map" ? mapId : null,
         file_url,
         file_path,
         file_mime,
         file_size,
         thumbnail_url,
-      });
-      if (error) throw error;
+      };
+
+      if (editing && post) {
+        const { error } = await updatePost(post.id, row);
+        if (error) throw error;
+        toast.success("Publicação atualizada.");
+        router.push(`/feed/${post.id}`);
+      } else {
+        const { error } = await insertPost({ ...row, author_id: user.id });
+        if (error) throw error;
+        toast.success("Publicação criada.");
+        router.push("/feed");
+      }
       await queryClient.invalidateQueries({ queryKey: ["feed"] });
-      toast.success("Publicação criada.");
-      router.push("/feed");
       router.refresh();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Não foi possível publicar.");
@@ -105,10 +119,10 @@ export function PostComposer() {
 
   return (
     <div className="mx-auto max-w-xl space-y-4 p-6">
-      <h1 className="text-2xl font-semibold">Nova publicação</h1>
+      <h1 className="text-2xl font-semibold">{editing ? "Editar publicação" : "Nova publicação"}</h1>
       <div className="space-y-2">
         <Label>Tipo</Label>
-        <Select value={type} onValueChange={setType}>
+        <Select value={type} onValueChange={(value) => setType(value as PostType)} disabled={editing}>
           <SelectTrigger>
             <SelectValue />
           </SelectTrigger>
@@ -157,14 +171,24 @@ export function PostComposer() {
           <Label>Arquivo</Label>
           <Input
             type="file"
-            accept={type === "image" ? "image/png,image/jpeg,image/gif,image/webp" : type === "ebook" ? ".pdf,.epub,application/pdf,application/epub+zip" : "application/pdf,.pdf"}
+            accept={
+              type === "image"
+                ? "image/png,image/jpeg,image/gif,image/webp"
+                : type === "ebook"
+                  ? ".pdf,.epub,application/pdf,application/epub+zip"
+                  : "application/pdf,.pdf"
+            }
             onChange={(event) => setFile(event.target.files?.[0] ?? null)}
           />
-          <p className="text-xs text-muted-foreground">PDF, EPUB ou imagens até 10 MB. O arquivo vai direto para o armazenamento.</p>
+          <p className="text-xs text-muted-foreground">
+            {editing && post?.file_url
+              ? "Pode trocar o arquivo ou deixar o atual. PDF, EPUB ou imagens até 10 MB."
+              : "PDF, EPUB ou imagens até 10 MB."}
+          </p>
         </div>
       )}
-      <Button disabled={loading || title.length < 3} onClick={submit}>
-        Publicar
+      <Button disabled={loading || title.trim().length < 2} onClick={() => void submit()}>
+        {loading ? "Salvando…" : editing ? "Salvar" : "Publicar"}
       </Button>
     </div>
   );

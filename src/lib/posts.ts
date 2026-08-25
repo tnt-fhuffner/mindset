@@ -1,4 +1,5 @@
 import { validateUpload } from "@/lib/file-validation";
+import { makePostThumbnail } from "@/lib/post-thumbnail";
 import { createClient } from "@/lib/supabase/client";
 
 export async function insertPost(row: Record<string, unknown>) {
@@ -11,6 +12,23 @@ export async function insertPost(row: Record<string, unknown>) {
     return supabase.from("posts").insert(rest);
   }
   return first;
+}
+
+export async function updatePost(id: string, row: Record<string, unknown>) {
+  const supabase = createClient();
+  const first = await supabase.from("posts").update(row).eq("id", id);
+  if (!first.error) return first;
+  if (first.error.message.toLowerCase().includes("thumbnail")) {
+    const rest = { ...row };
+    delete rest.thumbnail_url;
+    return supabase.from("posts").update(rest).eq("id", id);
+  }
+  return first;
+}
+
+export async function deletePost(id: string) {
+  const supabase = createClient();
+  return supabase.from("posts").delete().eq("id", id);
 }
 
 export async function uploadBlob(file: File | Blob, filename: string) {
@@ -46,4 +64,25 @@ export async function uploadBlob(file: File | Blob, filename: string) {
     mime: validation.mime,
     size: asFile.size,
   };
+}
+
+export async function buildAndUploadThumbnail(input: {
+  title: string;
+  type: string;
+  file?: File | null;
+  fileUrl?: string | null;
+  mapThumb?: string | null;
+}) {
+  if (input.type === "image" && input.fileUrl && !input.file) return input.fileUrl;
+  if (input.type === "map" && input.mapThumb) return input.mapThumb;
+
+  const cover = await makePostThumbnail({ title: input.title, type: input.type, file: input.file });
+  if (input.type === "image" && input.fileUrl && input.file && cover === input.file) {
+    return input.fileUrl;
+  }
+  const mime = cover.type || "image/jpeg";
+  const ext = mime.includes("png") ? "png" : mime.includes("webp") ? "webp" : "jpg";
+  const coverFile = new File([cover], `cover.${ext}`, { type: mime });
+  const thumb = await uploadBlob(coverFile, coverFile.name);
+  return thumb.publicUrl;
 }

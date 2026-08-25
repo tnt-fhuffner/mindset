@@ -19,8 +19,8 @@ async function requireAdmin() {
 
 const createUserSchema = z.object({
   email: z.string().trim().email(),
-  password: z.string().min(8).max(72),
-  displayName: z.string().trim().min(2).max(80),
+  password: z.string().min(6).max(72),
+  displayName: z.string().trim().max(80).optional(),
   role: z.enum(["admin", "user"]).optional(),
 });
 
@@ -30,26 +30,28 @@ export async function POST(request: Request) {
   const parsed = createUserSchema.safeParse(await request.json().catch(() => ({})));
   if (!parsed.success) {
     return NextResponse.json(
-      { error: "Informe nome, e-mail válido e senha com pelo menos 8 caracteres." },
+      { error: "Informe e-mail e senha (mínimo 6 caracteres)." },
       { status: 400 }
     );
   }
 
   try {
+    const name = parsed.data.displayName?.trim() || parsed.data.email.split("@")[0] || "Usuário";
     const admin = createServiceClient();
     const { data, error } = await admin.auth.admin.createUser({
       email: parsed.data.email,
       password: parsed.data.password,
       email_confirm: true,
-      user_metadata: { full_name: parsed.data.displayName, name: parsed.data.displayName },
+      user_metadata: { full_name: name, name },
     });
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     if (!data.user) return NextResponse.json({ error: "Usuário não foi criado." }, { status: 400 });
     await ensureProfile(admin, {
       id: data.user.id,
       email: parsed.data.email,
-      displayName: parsed.data.displayName,
+      displayName: name,
       role: parsed.data.role ?? "user",
+      overwriteRole: true,
     });
     return NextResponse.json({ ok: true, userId: data.user.id });
   } catch (error) {

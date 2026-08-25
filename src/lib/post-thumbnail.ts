@@ -58,7 +58,7 @@ function wrapText(
 
 async function pdfFirstPage(file: File): Promise<Blob> {
   const pdfjs = await import("pdfjs-dist");
-  pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+  pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
   const data = new Uint8Array(await file.arrayBuffer());
   const loadingTask = pdfjs.getDocument({ data });
   const doc = await loadingTask.promise;

@@ -49,6 +49,13 @@ export function initials(name?: string | null) {
     .join("");
 }
 
+export function safeAppPath(path: string | null | undefined) {
+  if (!path || !path.startsWith("/") || path.startsWith("//") || path.startsWith("/api")) {
+    return "/maps";
+  }
+  return path;
+}
+
 export function absoluteUrl(path: string) {
   return `${getAppUrl().replace(/\/$/, "")}${path.startsWith("/") ? path : `/${path}`}`;
 }

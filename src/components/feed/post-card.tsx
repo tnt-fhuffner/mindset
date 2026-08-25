@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Download, Heart, Link2, MessageCircle, MoreHorizontal, Repeat2, Share2, Flag } from "lucide-react";
+import { Download, Heart, Link2, MessageCircle, MoreHorizontal, Repeat2, Share2, Flag, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { PostCover } from "@/components/feed/post-cover";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -12,8 +12,9 @@ import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useAddComment, useComments, useToggleLike } from "@/hooks/use-feed";
 import { createClient } from "@/lib/supabase/client";
-import { insertPost } from "@/lib/posts";
+import { insertPost, deletePost } from "@/lib/posts";
 import { formatRelative, initials } from "@/lib/utils";
+import { useUser } from "@/hooks/use-profile";
 import type { Post } from "@/types";
 
 export function PostCard({ post }: { post: Post }) {
@@ -24,9 +25,11 @@ export function PostCard({ post }: { post: Post }) {
   const like = useToggleLike();
   const addComment = useAddComment();
   const comments = useComments(open ? post.id : undefined);
+  const { data: me } = useUser();
+  const isOwner = me?.id === post.author_id;
   const [text, setText] = useState("");
   const author = post.author;
-  const shareUrl = typeof window === "undefined" ? "" : `${window.location.origin}/feed?post=${post.id}`;
+  const shareUrl = typeof window === "undefined" ? "" : `${window.location.origin}/feed/${post.id}`;
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -117,6 +120,19 @@ export function PostCard({ post }: { post: Post }) {
     else toast.success("Denúncia enviada à moderação.");
   }
 
+  async function remove() {
+    if (!confirm("Apagar esta publicação?")) return;
+    const { error } = await deletePost(post.id);
+    if (error) toast.error(error.message);
+    else {
+      await queryClient.invalidateQueries({ queryKey: ["feed"] });
+      toast.success("Publicação apagada.");
+      if (typeof window !== "undefined" && window.location.pathname.includes(post.id)) {
+        window.location.assign("/feed");
+      }
+    }
+  }
+
   return (
     <Card className="p-5">
       <div className="flex items-start gap-3">
@@ -150,6 +166,30 @@ export function PostCard({ post }: { post: Post }) {
                   role="menu"
                   className="absolute right-0 top-full z-50 mt-1 w-52 rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
                 >
+                  {isOwner && (
+                    <>
+                      <Link
+                        href={`/feed/${post.id}/edit`}
+                        role="menuitem"
+                        className="flex w-full items-center rounded-sm px-2 py-1.5 text-sm hover:bg-muted"
+                        onClick={() => setMenuOpen(false)}
+                      >
+                        <Pencil className="mr-2 h-4 w-4" /> Editar
+                      </Link>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="flex w-full items-center rounded-sm px-2 py-1.5 text-sm text-destructive hover:bg-muted"
+                        onClick={() => {
+                          setMenuOpen(false);
+                          void remove();
+                        }}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" /> Apagar
+                      </button>
+                      <div className="my-1 h-px bg-border" />
+                    </>
+                  )}
                   <button
                     type="button"
                     role="menuitem"
@@ -183,24 +223,34 @@ export function PostCard({ post }: { post: Post }) {
                   >
                     <Repeat2 className="mr-2 h-4 w-4" /> Repostar
                   </button>
-                  <div className="my-1 h-px bg-border" />
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="flex w-full items-center rounded-sm px-2 py-1.5 text-sm text-destructive hover:bg-muted"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      void report();
-                    }}
-                  >
-                    <Flag className="mr-2 h-4 w-4" /> Denunciar
-                  </button>
+                  {!isOwner && (
+                    <>
+                      <div className="my-1 h-px bg-border" />
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="flex w-full items-center rounded-sm px-2 py-1.5 text-sm text-destructive hover:bg-muted"
+                        onClick={() => {
+                          setMenuOpen(false);
+                          void report();
+                        }}
+                      >
+                        <Flag className="mr-2 h-4 w-4" /> Denunciar
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
             </div>
           </div>
-          <h2 className="mt-2 text-base font-semibold">{post.title}</h2>
-          {post.description && <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">{post.description}</p>}
+          <Link href={`/feed/${post.id}`} className="mt-2 block">
+            <h2 className="text-base font-semibold hover:underline">{post.title}</h2>
+          </Link>
+          {post.description && (
+            <Link href={`/feed/${post.id}`} className="mt-1 block">
+              <p className="line-clamp-3 whitespace-pre-wrap text-sm text-muted-foreground">{post.description}</p>
+            </Link>
+          )}
           <PostCover post={post} />
           <div className="mt-3 flex gap-1">
             <Button

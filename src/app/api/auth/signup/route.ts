@@ -6,30 +6,27 @@ import { createServiceClient } from "@/lib/supabase/admin";
 
 const signupSchema = z.object({
   email: z.string().trim().email(),
-  password: z.string().min(8).max(72),
-  displayName: z.string().trim().min(2).max(80).optional(),
+  password: z.string().min(6).max(72),
+  displayName: z.string().trim().max(80).optional(),
 });
 
 export async function POST(request: Request) {
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-  const limited = rateLimit(`signup:${ip}`, 30, 60 * 60 * 1000);
+  const limited = rateLimit(`signup:${ip}`, 40, 60 * 60 * 1000);
   if (!limited.ok) {
     return NextResponse.json(
-      { error: "Muitas contas criadas deste endereço. Espere alguns minutos." },
+      { error: "Muitas contas deste endereço. Espere alguns minutos." },
       { status: 429 }
     );
   }
 
   const parsed = signupSchema.safeParse(await request.json().catch(() => ({})));
   if (!parsed.success) {
-    return NextResponse.json(
-      { error: "Informe um e-mail válido e uma senha com pelo menos 8 caracteres." },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Informe um e-mail e uma senha (mínimo 6 caracteres)." }, { status: 400 });
   }
 
   const { email, password, displayName } = parsed.data;
-  const name = displayName || email.split("@")[0];
+  const name = displayName?.trim() || email.split("@")[0] || "Usuário";
 
   try {
     const admin = createServiceClient();
@@ -43,10 +40,7 @@ export async function POST(request: Request) {
     if (error) {
       const message = error.message.toLowerCase();
       if (message.includes("already") || message.includes("registered") || message.includes("exists")) {
-        return NextResponse.json(
-          { error: "Este e-mail já tem conta. Entre com a senha." },
-          { status: 409 }
-        );
+        return NextResponse.json({ error: "Este e-mail já tem conta. Entre com a senha." }, { status: 409 });
       }
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
@@ -56,7 +50,6 @@ export async function POST(request: Request) {
         id: data.user.id,
         email,
         displayName: name,
-        role: "user",
       });
     }
 

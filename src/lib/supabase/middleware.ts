@@ -16,10 +16,18 @@ const PUBLIC_PREFIXES = [
 const AUTH_PAGES = ["/login", "/signup", "/forgot-password"];
 
 function isPublicPath(pathname: string) {
+  if (pathname.startsWith("/api")) return true;
   if (PUBLIC_PREFIXES.includes(pathname)) return true;
   return PUBLIC_PREFIXES.some(
     (prefix) => prefix !== "/" && pathname.startsWith(prefix)
   );
+}
+
+function safeNextPath(pathname: string) {
+  if (!pathname.startsWith("/") || pathname.startsWith("//") || pathname.startsWith("/api")) {
+    return "/maps";
+  }
+  return pathname;
 }
 
 export async function updateSession(request: NextRequest) {
@@ -55,7 +63,7 @@ export async function updateSession(request: NextRequest) {
   if (!user && !isPublicPath(pathname)) {
     const redirect = request.nextUrl.clone();
     redirect.pathname = "/login";
-    redirect.searchParams.set("next", pathname);
+    redirect.searchParams.set("next", safeNextPath(pathname));
     return NextResponse.redirect(redirect);
   }
 

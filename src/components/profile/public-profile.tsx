@@ -67,8 +67,12 @@ export function PublicProfile({
         <div className="space-y-3">
           {posts.map((post) => (
             <Card key={post.id} className="p-4">
-              <p className="font-medium">{post.title}</p>
-              <p className="text-sm text-muted-foreground">{post.description}</p>
+              <Link href={`/feed/${post.id}`} className="font-medium hover:underline">
+                {post.title}
+              </Link>
+              {post.description && (
+                <p className="line-clamp-2 text-sm text-muted-foreground">{post.description}</p>
+              )}
               <PostCover post={post} />
             </Card>
           ))}

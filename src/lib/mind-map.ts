@@ -16,7 +16,7 @@ export function emptyMindMap(label = "Ideia central"): MindMapContent {
   };
 }
 
-type LayoutNode = {
+export type LayoutNode = {
   id: string;
   label: string;
   parentId?: string | null;

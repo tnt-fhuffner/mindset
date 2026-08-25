@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { buildMindMapFromOutline } from "@/lib/mind-map";
+import { buildMindMapFromOutline, type LayoutNode } from "@/lib/mind-map";
 import type { MindMapContent } from "@/types";
 
 type Message = { role: "user" | "assistant"; content: string };
@@ -48,7 +48,7 @@ export function AiAssistantPanel({
       }
       if (!response.ok) throw new Error(payload.error ?? "Falha ao gerar com IA.");
       onApply(
-        buildMindMapFromOutline(payload.title ?? "Mapa gerado", payload.nodes ?? []),
+        buildMindMapFromOutline(payload.title ?? "Mapa gerado", (payload.nodes ?? []) as LayoutNode[]),
         payload.title
       );
       setMessages((current) => [
