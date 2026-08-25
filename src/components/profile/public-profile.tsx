@@ -29,12 +29,12 @@ export function PublicProfile({
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 px-6 pb-16">
-      <div className="flex items-start gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
         <Avatar className="h-16 w-16">
           <AvatarImage src={profile.avatar_url ?? undefined} />
           <AvatarFallback>{initials(profile.display_name)}</AvatarFallback>
         </Avatar>
-        <div className="flex-1">
+        <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-semibold">{profile.display_name}</h1>
           <p className="text-sm text-muted-foreground">@{profile.username}</p>
           <p className="mt-2 text-sm text-muted-foreground">
@@ -45,11 +45,11 @@ export function PublicProfile({
           {profile.bio && <p className="mt-2 text-sm">{profile.bio}</p>}
         </div>
         {!isSelf && me && (
-          <div className="flex gap-2">
-            <Button variant={follow.data ? "outline" : "default"} onClick={() => follow.toggle.mutate(Boolean(follow.data))}>
+          <div className="flex w-full gap-2 sm:w-auto sm:flex-col">
+            <Button className="flex-1 sm:flex-none" variant={follow.data ? "outline" : "default"} onClick={() => follow.toggle.mutate(Boolean(follow.data))}>
               {follow.data ? "Seguindo" : "Seguir"}
             </Button>
-            <Button variant="outline" onClick={() => router.push(`/messages?with=${profile.id}`)}>
+            <Button className="flex-1 sm:flex-none" variant="outline" onClick={() => router.push(`/messages?with=${profile.id}`)}>
               Mensagem
             </Button>
           </div>

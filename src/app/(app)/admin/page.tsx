@@ -114,7 +114,7 @@ export default function AdminPage() {
   const m = metrics.data;
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-4 pb-24">
       <h1 className="text-2xl font-semibold">Painel administrativo</h1>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Metric label="Usuários" value={m?.users_total} />

@@ -28,7 +28,7 @@ export default async function MapEditorPage({ params }: { params: { id: string }
   const canEdit = Boolean(isOwner || (user && map.collaborative && map.visibility !== "private"));
 
   return (
-    <div className="h-[calc(100vh-4rem)]">
+    <div className="h-full">
       <MindMapEditor
         map={map as MindMap}
         readOnly={!canEdit}

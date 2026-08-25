@@ -32,10 +32,10 @@ import { createClient } from "@/lib/supabase/client";
 import { cn, initials } from "@/lib/utils";
 
 const NAV = [
-  { href: "/maps", label: "Mapas", icon: LayoutGrid },
-  { href: "/feed", label: "Timeline", icon: BookOpen },
-  { href: "/people", label: "Pessoas", icon: Users },
-  { href: "/messages", label: "Mensagens", icon: MessageCircle },
+  { href: "/maps", label: "Mapas", short: "Mapas", icon: LayoutGrid },
+  { href: "/feed", label: "Timeline", short: "Feed", icon: BookOpen },
+  { href: "/people", label: "Pessoas", short: "Pessoas", icon: Users },
+  { href: "/messages", label: "Mensagens", short: "Chat", icon: MessageCircle },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -44,6 +44,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { data: profile } = useProfile();
   const { data: notifications } = useNotifications();
   const unread = (notifications ?? []).filter((item) => !item.read_at).length;
+  const isMapEditor = pathname.startsWith("/maps/") && pathname !== "/maps/new";
+  const fillViewport = isMapEditor || pathname === "/messages";
 
   async function signOut() {
     const supabase = createClient();
@@ -53,7 +55,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className={cn("min-h-dvh bg-background", isMapEditor && "app-hide-tabbar")}>
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 border-r bg-card/80 px-4 py-5 backdrop-blur md:flex md:flex-col">
         <Link href="/maps" className="mb-8 px-2">
           <Logo />
@@ -98,10 +100,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className="md:pl-60">
-        <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b bg-background/80 px-4 backdrop-blur">
-          <div className="flex items-center gap-3 md:hidden">
+        <header className="sticky top-0 z-20 flex h-[var(--app-header)] items-center justify-between border-b bg-background/80 px-4 pt-[env(safe-area-inset-top,0px)] backdrop-blur">
+          <Link href="/maps" className="flex items-center gap-3 md:hidden" aria-label="MindSet">
             <Logo />
-          </div>
+          </Link>
           <div className="ml-auto flex items-center gap-1">
             <Button variant="ghost" size="icon" asChild>
               <Link href="/notifications" aria-label="Notificações" className="relative">
@@ -145,22 +147,48 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </DropdownMenu>
           </div>
         </header>
-        <main className="min-h-[calc(100vh-4rem)] md:pb-0 pb-14">{children}</main>
-        <nav className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 border-t bg-background md:hidden">
-          {NAV.map((item) => {
-            const Icon = item.icon;
-            return (
-              <Link key={item.href} href={item.href} className="flex flex-col items-center gap-1 py-2 text-[11px]">
-                <Icon className="h-4 w-4" />
-                {item.label}
-              </Link>
-            );
-          })}
-          <Link href="/feed/new" className="flex flex-col items-center gap-1 py-2 text-[11px]">
-            <Plus className="h-4 w-4" />
-            Publicar
-          </Link>
-        </nav>
+        <main
+          className={cn(
+            fillViewport
+              ? "h-[calc(100dvh-var(--app-header)-var(--app-tabbar))] overflow-hidden"
+              : "min-h-[calc(100dvh-var(--app-header))] pb-[var(--app-tabbar)] md:pb-0"
+          )}
+        >
+          {children}
+        </main>
+        {!isMapEditor && (
+          <nav className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 border-t bg-background pb-[env(safe-area-inset-bottom,0px)] md:hidden">
+            {NAV.map((item) => {
+              const Icon = item.icon;
+              const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "flex min-w-0 flex-col items-center gap-0.5 px-1 py-2 text-[10px] leading-tight text-muted-foreground",
+                    active && "font-medium text-primary"
+                  )}
+                >
+                  <Icon className="h-5 w-5" />
+                  <span className="max-w-full truncate">{item.short}</span>
+                </Link>
+              );
+            })}
+            <Link
+              href="/feed/new"
+              aria-current={pathname.startsWith("/feed/new") ? "page" : undefined}
+              className={cn(
+                "flex min-w-0 flex-col items-center gap-0.5 px-1 py-2 text-[10px] leading-tight text-muted-foreground",
+                pathname.startsWith("/feed/new") && "font-medium text-primary"
+              )}
+            >
+              <Plus className="h-5 w-5" />
+              <span className="max-w-full truncate">Novo</span>
+            </Link>
+          </nav>
+        )}
       </div>
     </div>
   );

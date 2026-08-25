@@ -64,7 +64,7 @@ export function AiAssistantPanel({
   }
 
   return (
-    <aside className="flex h-full w-full flex-col border-l bg-card md:w-80">
+    <aside className="flex h-64 w-full shrink-0 flex-col border-t bg-card md:h-full md:w-80 md:border-l md:border-t-0">
       <div className="border-b px-4 py-3">
         <p className="flex items-center gap-2 text-sm font-semibold">
           <Sparkles className="h-4 w-4 text-primary" /> Assistente de IA

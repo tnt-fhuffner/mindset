@@ -18,8 +18,8 @@ export default function NotificationsPage() {
   const { data, markAllRead } = useNotifications();
 
   return (
-    <div className="mx-auto max-w-2xl space-y-3 p-6">
-      <div className="flex items-center justify-between">
+    <div className="mx-auto max-w-2xl space-y-3 p-4 pb-24">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-semibold">Notificações</h1>
         <Button variant="outline" onClick={() => markAllRead.mutate()}>
           Marcar como lidas

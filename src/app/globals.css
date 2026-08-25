@@ -61,7 +61,28 @@
   }
 
   body {
-    @apply bg-background text-foreground font-sans antialiased;
+    @apply bg-background text-foreground font-sans antialiased overflow-x-hidden;
+  }
+
+  :root {
+    --app-header: calc(4rem + env(safe-area-inset-top, 0px));
+    --app-tabbar: calc(3.5rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  @media (min-width: 768px) {
+    :root {
+      --app-tabbar: 0px;
+    }
+  }
+}
+
+.app-hide-tabbar {
+  --app-tabbar: 0px;
+}
+
+@media (max-width: 767px) {
+  .react-flow__minimap {
+    display: none !important;
   }
 }
 

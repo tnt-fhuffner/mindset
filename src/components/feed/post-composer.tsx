@@ -118,7 +118,7 @@ export function PostComposer({ post }: { post?: Post }) {
   }
 
   return (
-    <div className="mx-auto max-w-xl space-y-4 p-6">
+    <div className="mx-auto max-w-xl space-y-4 p-4 pb-24">
       <h1 className="text-2xl font-semibold">{editing ? "Editar publicação" : "Nova publicação"}</h1>
       <div className="space-y-2">
         <Label>Tipo</Label>

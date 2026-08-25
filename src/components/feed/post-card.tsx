@@ -143,13 +143,17 @@ export function PostCard({ post }: { post: Post }) {
           </Avatar>
         </Link>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 text-sm">
-            <Link href={author ? `/u/${author.username}` : "#"} className="font-semibold hover:underline">
-              {author?.display_name}
-            </Link>
-            <span className="text-muted-foreground">@{author?.username}</span>
-            <span className="text-muted-foreground">· {formatRelative(post.created_at)}</span>
-            <div className="relative ml-auto" ref={menuRef}>
+          <div className="flex items-start gap-2 text-sm">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-0">
+                <Link href={author ? `/u/${author.username}` : "#"} className="truncate font-semibold hover:underline">
+                  {author?.display_name}
+                </Link>
+                <span className="truncate text-muted-foreground">@{author?.username}</span>
+                <span className="shrink-0 text-muted-foreground">· {formatRelative(post.created_at)}</span>
+              </div>
+            </div>
+            <div className="relative ml-auto shrink-0" ref={menuRef}>
               <Button
                 type="button"
                 variant="ghost"
@@ -252,7 +256,7 @@ export function PostCard({ post }: { post: Post }) {
             </Link>
           )}
           <PostCover post={post} />
-          <div className="mt-3 flex gap-1">
+          <div className="mt-3 flex flex-wrap gap-1">
             <Button
               variant="ghost"
               size="sm"
@@ -286,7 +290,7 @@ export function PostCard({ post }: { post: Post }) {
                 </div>
               ))}
               <form
-                className="flex gap-2"
+                className="flex flex-col gap-2 sm:flex-row"
                 onSubmit={(event) => {
                   event.preventDefault();
                   if (!text.trim()) return;
@@ -295,7 +299,9 @@ export function PostCard({ post }: { post: Post }) {
                 }}
               >
                 <Textarea value={text} onChange={(event) => setText(event.target.value)} placeholder="Escreva um comentário" rows={2} />
-                <Button type="submit">Enviar</Button>
+                <Button type="submit" className="sm:self-end">
+                  Enviar
+                </Button>
               </form>
             </div>
           )}

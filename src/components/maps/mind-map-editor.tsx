@@ -294,11 +294,11 @@ function EditorCanvas({
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex flex-wrap items-center gap-2 border-b bg-card/80 px-3 py-2">
+      <div className="flex items-center gap-2 overflow-x-auto border-b bg-card/80 px-3 py-2">
         <Input
           value={title}
           onChange={(event) => setTitle(event.target.value)}
-          className="h-9 max-w-xs border-none bg-transparent text-base font-semibold shadow-none"
+          className="h-9 min-w-[8rem] flex-1 border-none bg-transparent text-base font-semibold shadow-none md:max-w-xs"
           readOnly={readOnly}
         />
         {!readOnly && (
@@ -341,7 +341,7 @@ function EditorCanvas({
             online
           </div>
         )}
-        <div className="ml-auto flex flex-wrap items-center gap-1">
+        <div className="ml-auto flex shrink-0 items-center gap-1">
           {!readOnly && (
             <>
               <Button size="sm" variant="outline" onClick={addNode}>
@@ -402,7 +402,7 @@ function EditorCanvas({
       </div>
 
       {selected && !readOnly && (
-        <div className="flex flex-wrap items-center gap-2 border-b px-3 py-2 text-sm">
+        <div className="flex items-center gap-2 overflow-x-auto border-b px-3 py-2 text-sm">
           <Input
             value={String(selected.data.label ?? "")}
             className="h-8 max-w-xs"
@@ -466,8 +466,8 @@ function EditorCanvas({
         </div>
       )}
 
-      <div className="flex min-h-0 flex-1">
-        <div className="map-canvas relative min-w-0 flex-1">
+      <div className="flex min-h-0 flex-1 max-md:flex-col">
+        <div className="map-canvas relative min-h-0 min-w-0 flex-1">
           <ReactFlow
             nodes={nodes}
             edges={edges}
