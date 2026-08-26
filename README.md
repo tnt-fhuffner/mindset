@@ -53,6 +53,7 @@ node scripts/ensure-admin.mjs email@dominio senha
    - `NEXT_PUBLIC_APP_URL` (a URL `https://….vercel.app`)
    - `NEXT_PUBLIC_MASTER_ADMIN_EMAIL`
    - `ANTHROPIC_API_KEY` (opcional)
+   - `RESEND_API_KEY` e `EMAIL_FROM` (e-mail para seguidores e mensagens)
 3. Em **Deployments**, publique o commit mais recente da `main` (**Redeploy**). Variáveis `NEXT_PUBLIC_*` só entram no bundle no build.
 4. No Supabase → Authentication → URL Configuration, adicione:
    - Site URL: a URL da Vercel

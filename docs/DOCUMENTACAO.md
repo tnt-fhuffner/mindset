@@ -33,7 +33,8 @@ O público-alvo implícito é quem organiza estudo ou trabalho visualmente e que
 | Colaboração | Toggle “Editar juntos”, presença (avatares), sync last-write-wins via Realtime |
 | Timeline | Publicar 6 tipos de conteúdo, miniatura automática, editar/apagar o próprio post |
 | Pessoas | Busca, sugestões, seguir/deixar de seguir, contagens no perfil |
-| Mensagens | Conversas 1:1, realtime, UX master-detail no celular |
+| Mensagens | Conversas 1:1, realtime, UX master-detail no celular, e-mail ao destinatário |
+| Notificações | Sino no app + e-mail para seguidores em post novo |
 | IA | Gerar/sugerir estrutura de mapa, limite mensal + rate limit |
 | Admin | Criar usuário, promover/rebaixar, bloquear, métricas, denúncias |
 | Mobile | Shell com tab bar, chat em duas telas, editor de mapa em tela cheia |
@@ -160,6 +161,8 @@ Identidade pública. Criada automaticamente no trigger `on_auth_user_created`.
 | `role` | text | `admin` \| `user` (default `user`) |
 | `is_blocked` | boolean | middleware encerra a sessão |
 | `onboarding_completed` | boolean | dialog na lista de mapas |
+| `notify_email_posts` | boolean | default true; e-mail quando um seguido publica |
+| `notify_email_messages` | boolean | default true; e-mail quando chega DM |
 | `created_at` / `updated_at` | timestamptz | |
 
 **Regra de papel:** o e-mail mestre (`felipeqh.1991@gmail.com`, também em `NEXT_PUBLIC_MASTER_ADMIN_EMAIL`) entra como `admin` no trigger e é reafirmado por `ensure_master_admin()`. Ninguém rebaixa essa conta via auto-serviço: o trigger `protect_profile_privileges` impede o próprio usuário de alterar `role` / `is_blocked`; só `service_role` ou outro admin.
@@ -223,7 +226,7 @@ RPC `get_or_create_conversation(other_user uuid)` é o único jeito estável de 
 
 #### `notifications`
 
-Tipos: `like`, `comment`, `follow`, `message`, `mention`, `report`. Payload jsonb (ex.: `{ conversation_id }` em mensagem).
+Tipos: `like`, `comment`, `follow`, `message`, `mention`, `report`, `post`. Payload jsonb (ex.: `{ conversation_id }` em mensagem). Post novo notifica cada seguidor.
 
 #### `reports`
 
@@ -314,6 +317,7 @@ Arquivo `src/lib/supabase/middleware.ts`:
 | `signup:{ip}` | 40 / hora |
 | `ai:{userId}` | 8 / 10 min |
 | `upload:{userId}` | 20 / hora (rota `/api/upload`) |
+| `notify:{userId}` | 40 / hora (e-mails de post/mensagem) |
 
 Não substitui WAF; em scale, mover para Redis/Upstash.
 
@@ -337,7 +341,7 @@ Não substitui WAF; em scale, mover para Redis/Upstash.
 - `handle_new_user` em `auth.users` INSERT
 - `protect_profile_privileges` BEFORE UPDATE profiles
 - `protect_map_collab` BEFORE UPDATE mind_maps
-- `notify_*` em likes, comments, follows, messages
+- `notify_*` em likes, comments, follows, messages, posts (`notify_followers_on_post`)
 
 ### Realtime (publication `supabase_realtime`)
 
@@ -363,9 +367,11 @@ Rodar **na ordem** no SQL Editor do Supabase (projetos já existentes podem apli
 | `00004_admin_roles_and_uploads.sql` | Service role pode mudar `role`; bucket 10 MB + PDF |
 | `00005_app_fixes.sql` | Pacote “one-shot”: thumbnails + trigger + storage + crédito + master admin |
 | `00006_map_collab.sql` | Coluna `collaborative`, política de update, trigger de proteção, realtime do mapa |
+| `00007_email_notifications.sql` | Tipo `post` nas notificações, aviso aos seguidores, preferências de e-mail |
 
 **Sem 00004/00005:** promover alguém a admin pela API parece funcionar e o trigger reverte para `user`.  
-**Sem 00006:** o toggle “Editar juntos” não persiste / colaboradores não passam no RLS.
+**Sem 00006:** o toggle “Editar juntos” não persiste / colaboradores não passam no RLS.  
+**Sem 00007:** o sino no app não avisa seguidores de post novo; os e-mails ainda saem pela API se o Resend estiver configurado.
 
 O `00001` atual já incorpora vários desses patches. Em banco **novo**, rode 00001 e depois 00006 (e 00005 se quiser o `ensure_master_admin` extra). Em banco **antigo** criado no início do projeto, rode a sequência inteira.
 
@@ -428,6 +434,7 @@ node scripts/ensure-admin.mjs email@dominio senha
 - Dono: Editar / Apagar. Terceiros: Denunciar com confirmação (não dispara denúncia no primeiro toque dos 3 pontos).
 - Clique no título/capa/descrição abre `/feed/[id]` com o conteúdo real (iframe PDF, imagem, link, mapa, artigo).
 - Miniatura: primeira página do PDF via pdf.js, ou canvas com título; upload da capa no bucket `uploads`.
+- Publicar dispara notificação in-app e e-mail para quem segue o autor (`/api/notify/email`).
 
 ### 9.4 Pessoas (`/people`)
 
@@ -440,11 +447,12 @@ Busca debounce 250 ms + sugestões. Card com Seguir e atalho de mensagem. `WhoTo
 - `?with={userId}` chama `get_or_create_conversation` e limpa a query da URL.
 - Composer acima da tab bar e da safe area; scroll nativo (não Radix ScrollArea).
 - Realtime de INSERT + invalidação React Query.
+- O destinatário recebe e-mail (com debounce de 15 min por conversa lotada).
 
 ### 9.6 Notificações e configurações
 
-- `/notifications` — lista + marcar todas como lidas.
-- `/settings` — nome, username, bio, avatar.
+- `/notifications` — lista + marcar todas como lidas (inclui tipo `post`).
+- `/settings` — nome, username, bio, avatar, opt-in de e-mail (posts e mensagens).
 
 ### 9.7 Admin (`/admin`)
 
@@ -462,6 +470,7 @@ Métricas via `get_admin_metrics`, criar usuário, lista com promover/rebaixar/b
 | DELETE | `/api/admin` | admin | apaga user/post/comment |
 | POST | `/api/ai/generate` | sessão | consome crédito, chama Claude, devolve outline JSON |
 | POST | `/api/upload` | sessão | upload via server (legado; compositor não usa) |
+| POST | `/api/notify/email` | sessão ou `x-notify-secret` | e-mail a seguidores (post) ou ao destinatário (mensagem) |
 
 IA: `maxDuration = 60`, tenta `ANTHROPIC_MODEL` e depois fallbacks (`claude-sonnet-4-5`, `claude-3-5-sonnet-latest`, …). Só incrementa crédito se a geração passar. Resposta inválida/vazia vira JSON de erro (nunca HTML).
 
@@ -538,7 +547,9 @@ Ver `.env.example`. Obrigatórias em produção:
 - `SUPABASE_SERVICE_ROLE_KEY` (signup + admin)
 - `NEXT_PUBLIC_APP_URL` (URL canônica, usada no redirect OAuth)
 
-Opcionais: `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`, `NEXT_PUBLIC_GOOGLE_AUTH`, `NEXT_PUBLIC_MASTER_ADMIN_EMAIL`, `AI_MONTHLY_LIMIT` (default 15), `UPLOAD_MAX_BYTES`.
+Opcionais: `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`, `NEXT_PUBLIC_GOOGLE_AUTH`, `NEXT_PUBLIC_MASTER_ADMIN_EMAIL`, `AI_MONTHLY_LIMIT` (default 15), `UPLOAD_MAX_BYTES`, `RESEND_API_KEY`, `EMAIL_FROM`, `NOTIFY_WEBHOOK_SECRET`.
+
+E-mail transacional usa [Resend](https://resend.com). Sem `RESEND_API_KEY` o app não quebra: o sino no app continua, o e-mail é ignorado. O remetente de teste `beth.t@example.com` só entrega na conta Resend; em produção use um domínio verificado em `EMAIL_FROM`. Mensagens repetidas no mesmo destinatário em menos de 15 minutos não geram outro e-mail.
 
 **Nunca** commitar `.env.local`.
 

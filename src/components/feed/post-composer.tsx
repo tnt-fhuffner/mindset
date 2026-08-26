@@ -19,6 +19,7 @@ import { POST_TYPES, type PostType } from "@/lib/constants";
 import { useMindMaps } from "@/hooks/use-maps";
 import { createClient } from "@/lib/supabase/client";
 import { buildAndUploadThumbnail, insertPost, updatePost, uploadBlob } from "@/lib/posts";
+import { queueEmailNotify } from "@/lib/notify";
 import type { Post } from "@/types";
 
 export function PostComposer({ post }: { post?: Post }) {
@@ -103,8 +104,9 @@ export function PostComposer({ post }: { post?: Post }) {
         toast.success("Publicação atualizada.");
         router.push(`/feed/${post.id}`);
       } else {
-        const { error } = await insertPost({ ...row, author_id: user.id });
-        if (error) throw error;
+        const created = await insertPost({ ...row, author_id: user.id });
+        if (created.error) throw created.error;
+        if (created.data?.id) queueEmailNotify({ kind: "post", postId: created.data.id });
         toast.success("Publicação criada.");
         router.push("/feed");
       }

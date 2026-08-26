@@ -4,12 +4,12 @@ import { createClient } from "@/lib/supabase/client";
 
 export async function insertPost(row: Record<string, unknown>) {
   const supabase = createClient();
-  const first = await supabase.from("posts").insert(row);
+  const first = await supabase.from("posts").insert(row).select("id").single();
   if (!first.error) return first;
   if (first.error.message.toLowerCase().includes("thumbnail")) {
     const rest = { ...row };
     delete rest.thumbnail_url;
-    return supabase.from("posts").insert(rest);
+    return supabase.from("posts").insert(rest).select("id").single();
   }
   return first;
 }

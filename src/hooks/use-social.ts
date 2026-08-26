@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
+import { queueEmailNotify } from "@/lib/notify";
 import type { Conversation, Message, Notification, Profile } from "@/types";
 
 export function useNotifications() {
@@ -149,6 +150,12 @@ export function useSendMessage() {
         content: input.content,
       });
       if (error) throw error;
+      queueEmailNotify({
+        kind: "message",
+        receiverId: input.receiverId,
+        conversationId: input.conversationId,
+        preview: input.content,
+      });
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["messages", variables.conversationId] });

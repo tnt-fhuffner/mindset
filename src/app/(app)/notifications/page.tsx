@@ -6,6 +6,7 @@ import { useNotifications } from "@/hooks/use-social";
 import { formatRelative } from "@/lib/utils";
 
 const LABELS: Record<string, string> = {
+  post: "publicou algo novo",
   like: "curtiu sua publicação",
   comment: "comentou em sua publicação",
   follow: "começou a seguir você",
@@ -35,6 +36,11 @@ export default function NotificationsPage() {
           {item.type === "message" && (
             <Link href="/messages" className="mt-2 inline-block text-primary underline">
               Abrir conversa
+            </Link>
+          )}
+          {item.type === "post" && item.post_id && (
+            <Link href={`/feed/${item.post_id}`} className="mt-2 inline-block text-primary underline">
+              Ver publicação
             </Link>
           )}
         </div>

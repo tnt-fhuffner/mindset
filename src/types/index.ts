@@ -15,6 +15,8 @@ export type Profile = {
   role: "admin" | "user";
   is_blocked: boolean;
   onboarding_completed: boolean;
+  notify_email_posts?: boolean;
+  notify_email_messages?: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -124,7 +126,7 @@ export type Notification = {
   id: string;
   user_id: string;
   actor_id: string | null;
-  type: "like" | "comment" | "follow" | "message" | "mention" | "report";
+  type: "like" | "comment" | "follow" | "message" | "mention" | "report" | "post";
   post_id: string | null;
   comment_id: string | null;
   payload: Json;
