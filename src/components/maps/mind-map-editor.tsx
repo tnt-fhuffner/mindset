@@ -48,7 +48,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { NODE_COLORS } from "@/lib/constants";
-import { layoutExistingMap } from "@/lib/mind-map";
+import { layoutExistingMap, hiddenNodeIds } from "@/lib/mind-map";
 import { useMapCollab } from "@/hooks/use-map-collab";
 import { useSaveMindMap } from "@/hooks/use-maps";
 import { useProfile } from "@/hooks/use-profile";
@@ -95,6 +95,19 @@ function EditorCanvas({
   const debounce = useRef<ReturnType<typeof setTimeout>>();
 
   const selected = nodes.find((node) => node.id === selectedId);
+  const hiddenIds = useMemo(() => hiddenNodeIds(nodes, edges), [nodes, edges]);
+  const displayNodes = useMemo(
+    () => nodes.map((node) => ({ ...node, hidden: hiddenIds.has(node.id) })),
+    [nodes, hiddenIds]
+  );
+  const displayEdges = useMemo(
+    () =>
+      edges.map((edge) => ({
+        ...edge,
+        hidden: hiddenIds.has(edge.source) || hiddenIds.has(edge.target),
+      })),
+    [edges, hiddenIds]
+  );
 
   const pushHistory = useCallback((nextNodes: Node[], nextEdges: Edge[]) => {
     if (skipHistory.current) return;
@@ -189,6 +202,10 @@ function EditorCanvas({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nodes, edges, title, visibility, collaborative]);
 
+  useEffect(() => {
+    if (selectedId && hiddenIds.has(selectedId)) setSelectedId(null);
+  }, [hiddenIds, selectedId]);
+
   function addNode() {
     const id = crypto.randomUUID();
     const next: Node = {
@@ -197,8 +214,11 @@ function EditorCanvas({
       position: { x: 180 + Math.random() * 240, y: 80 + Math.random() * 220 },
       data: { label: "Novo tópico", color: NODE_COLORS[nodes.length % NODE_COLORS.length], icon: "lightbulb" },
     };
-    const nextNodes = [...nodes, next];
+    let nextNodes = [...nodes, next];
     if (selectedId) {
+      nextNodes = nextNodes.map((node) =>
+        node.id === selectedId ? { ...node, data: { ...node.data, collapsed: false } } : node
+      );
       const nextEdges = [...edges, { id: `${selectedId}-${id}`, source: selectedId, target: id, type: "smoothstep", style: EDGE_STYLE }];
       setEdges(nextEdges);
       pushHistory(nextNodes, nextEdges);
@@ -469,8 +489,8 @@ function EditorCanvas({
       <div className="flex min-h-0 flex-1 max-md:flex-col">
         <div className="map-canvas relative min-h-0 min-w-0 flex-1">
           <ReactFlow
-            nodes={nodes}
-            edges={edges}
+            nodes={displayNodes}
+            edges={displayEdges}
             onNodesChange={readOnly ? undefined : onNodesChange}
             onEdgesChange={readOnly ? undefined : onEdgesChange}
             onConnect={readOnly ? undefined : onConnect}

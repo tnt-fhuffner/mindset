@@ -23,7 +23,38 @@ export type LayoutNode = {
   color?: string;
   icon?: string;
   notes?: string;
+  collapsed?: boolean;
 };
+
+export function descendantIds(rootId: string, edges: Array<{ source: string; target: string }>) {
+  const children = new Map<string, string[]>();
+  for (const edge of edges) {
+    const list = children.get(edge.source) ?? [];
+    list.push(edge.target);
+    children.set(edge.source, list);
+  }
+  const out = new Set<string>();
+  const stack = [...(children.get(rootId) ?? [])];
+  while (stack.length) {
+    const id = stack.pop()!;
+    if (out.has(id)) continue;
+    out.add(id);
+    stack.push(...(children.get(id) ?? []));
+  }
+  return out;
+}
+
+export function hiddenNodeIds(
+  nodes: Array<{ id: string; data?: { collapsed?: boolean } }>,
+  edges: Array<{ source: string; target: string }>
+) {
+  const hidden = new Set<string>();
+  for (const node of nodes) {
+    if (!node.data?.collapsed) continue;
+    descendantIds(node.id, edges).forEach((id) => hidden.add(id));
+  }
+  return hidden;
+}
 
 export function buildMindMapFromOutline(
   title: string,
@@ -64,6 +95,7 @@ export function buildMindMapFromOutline(
         color,
         icon: node.icon,
         notes: node.notes,
+        collapsed: node.collapsed,
       },
     });
     const kids = children.get(node.id) ?? [];
@@ -96,6 +128,7 @@ export function layoutExistingMap(content: MindMapContent): MindMapContent {
     color: node.data.color,
     icon: node.data.icon,
     notes: node.data.notes,
+    collapsed: node.data.collapsed,
   }));
   const laidOut = buildMindMapFromOutline(
     content.nodes[0]?.data.label ?? "Mapa",

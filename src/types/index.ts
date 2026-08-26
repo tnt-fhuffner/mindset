@@ -32,6 +32,7 @@ export type MapNodeData = {
   color: string;
   icon?: string;
   notes?: string;
+  collapsed?: boolean;
 };
 
 export type MindMapContent = {

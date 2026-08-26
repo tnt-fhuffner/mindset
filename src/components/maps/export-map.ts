@@ -77,10 +77,11 @@ export async function exportMap(
 ) {
   const name = slugifyFilename(title);
   if (format === "json") {
-    downloadJson(`${name}.json`, { title, content: { ...content, nodes, edges } });
+    downloadJson(`${name}.json`, { title, content });
     return;
   }
-  const dataUrl = await capture(nodes, format === "svg" ? "svg" : "png");
+  const visible = nodes.filter((node) => !node.hidden);
+  const dataUrl = await capture(visible.length ? visible : nodes, format === "svg" ? "svg" : "png");
   if (format === "svg") {
     const blob = await (await fetch(dataUrl)).blob();
     downloadBlob(`${name}.svg`, blob);
